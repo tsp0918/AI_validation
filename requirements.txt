@@ -1,0 +1,17 @@
+# --- Web framework ---
+fastapi>=0.110
+uvicorn[standard]>=0.29
+
+# --- ORM / DB ---
+sqlalchemy>=2.0
+alembic>=1.13
+
+# --- Data handling ---
+pydantic>=2.6
+python-dotenv>=1.0
+
+# --- Optional (later use, safe to install now) ---
+numpy>=1.24
+# ベクトル検索（FAISS）を使うなら（Macは faiss-cpu が通らないことがある）
+faiss-cpu
+sentence-transformers
