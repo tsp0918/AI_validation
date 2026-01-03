@@ -7,7 +7,7 @@ import enum
 from datetime import datetime
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
 
-from sqlalchemy import String, Integer, DateTime, ForeignKey, Text, Index
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Text, Index, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -82,25 +82,59 @@ class TransactionItem(Base, TimestampMixin):
 
     transaction: Mapped["Transaction"] = relationship(back_populates="items")
 
+    # usage_requirements が item 単位で紐づく設計なら使える（DBに列がある前提）
+    usage_requirements: Mapped[List["UsageRequirement"]] = relationship(
+        back_populates="transaction_item",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
 
 class UsageRequirement(Base):
     """
-    既存DB（usage_requirements）に合わせた最小構成。
-    既にあなたのDBで動いている: id, transaction_id, source, text, created_at
+    usage_requirements テーブルに合わせる。
+    DB 側で NOT NULL の updated_at / risk_tags がある前提。
     """
     __tablename__ = "usage_requirements"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    transaction_id: Mapped[int] = mapped_column(ForeignKey("transactions.id", ondelete="CASCADE"), index=True)
 
-    source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)  # core / expanded
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    transaction_item_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("transaction_items.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     text: Mapped[str] = mapped_column(Text, nullable=False)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    # ★ DB NOT NULL 対応
+    risk_tags: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
+
+    normalized_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(nullable=True)
+
+    created_by: Mapped[str] = mapped_column(String(32), default="user", nullable=False)
+
+    # ★今回のエラー原因：DB NOT NULL なのにモデル未定義だった
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
     transaction: Mapped["Transaction"] = relationship(back_populates="usage_requirements")
 
-    # ai_run.py 側の PatentRetrieval / MatrixMatch と接続
+    # UIで item から usage を辿りたいなら（不要なら消してOK）
+    transaction_item: Mapped[Optional["TransactionItem"]] = relationship(back_populates="usage_requirements")
+
     patent_retrievals: Mapped[List["PatentRetrieval"]] = relationship(
         back_populates="usage_requirement",
         cascade="all, delete-orphan",
