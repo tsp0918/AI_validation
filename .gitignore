@@ -21,3 +21,6 @@ alembic/versions/__pycache__/
 
 # Logs
 *.log
+
+# data
+data/*.json
