@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import ast
 from typing import Optional, Dict, Any, List, Tuple
 
 from sqlalchemy.orm import Session
@@ -43,6 +44,66 @@ def _safe_json_loads(s: Optional[str]) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _pretty_json(d: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not d:
+        return None
+    try:
+        return json.dumps(d, ensure_ascii=False, indent=2, sort_keys=False)
+    except Exception:
+        return None
+
+
+def _extract_matched_tokens(evidence: Optional[Dict[str, Any]]) -> List[str]:
+    if not evidence:
+        return []
+    v = evidence.get("matched_tokens")
+    if isinstance(v, list):
+        return [str(x) for x in v][:80]
+    return []
+
+
+def _parse_item_no_to_display(item_no: Optional[str]) -> str:
+    """
+    DBの item_no が
+      "{'raw':..., 'norm':..., 'id':...} / {...}"
+    のような「dict文字列」連結でも、人間向けに整形して表示する。
+
+    例:
+      EL-3-2-11: 輸出令 第3項 (2)11 / METI-...: ...
+    """
+    if not item_no:
+        return "-"
+
+    s = item_no.strip()
+
+    # まず " / " で分割して、それぞれ dict文字列なら literal_eval
+    parts = [p.strip() for p in s.split(" / ") if p.strip()]
+    rendered: List[str] = []
+
+    for p in parts:
+        # dict文字列らしければパース
+        if p.startswith("{") and p.endswith("}"):
+            try:
+                obj = ast.literal_eval(p)
+                if isinstance(obj, dict):
+                    rid = str(obj.get("id") or "").strip()
+                    norm = str(obj.get("norm") or "").strip()
+                    raw = str(obj.get("raw") or "").strip().replace("\n", " ")
+                    label = norm or raw or p
+                    if rid:
+                        rendered.append(f"{rid}: {label}")
+                    else:
+                        rendered.append(label)
+                    continue
+            except Exception:
+                pass
+
+        # dictに見えない/失敗はそのまま
+        rendered.append(p.replace("\n", " "))
+
+    return " / ".join(rendered) if rendered else s.replace("\n", " ")
+
+
 def _load_matches(db: Session, run_id: int) -> List[Tuple[MatrixMatch, MatrixRule]]:
     return (
         db.query(MatrixMatch, MatrixRule)
@@ -63,20 +124,20 @@ def _load_usage_map(db: Session, transaction_id: int) -> Dict[int, UsageRequirem
 
 def compute_two_lists(db: Session, transaction_id: int, run_id: Optional[int] = None) -> Dict[str, Any]:
     """
-    2リスト集計（DB互換・堅牢版）:
+    2リスト集計（UI表示用の整形付き）:
       - core_hit と expanded_hit を item_no 単位で集約
       - A: 両方に出る item（intersection）
       - B: expanded のみに出る item（expanded_only）
 
-    重要:
-      - 指定 run_id に matrix_matches が 0 件でも "エラーにしない"（UIで0件表示できる）
+    追加:
+      - evidence_json を dict化して、pretty文字列や matched_tokens を UI表示しやすい形にする
+      - item_no が dict文字列連結でも見やすい表示を作る
     """
     rid = run_id or _pick_latest_matrix_match_run_id(db, transaction_id)
 
     rows = _load_matches(db, rid)
     usage_map = _load_usage_map(db, transaction_id)
 
-    # ★ 0件なら例外を投げずに空で返す（ここが今回のポイント）
     if not rows:
         return {
             "transaction_id": transaction_id,
@@ -95,15 +156,20 @@ def compute_two_lists(db: Session, transaction_id: int, run_id: Optional[int] = 
 
     for mm, rule in rows:
         key = _get_item_key(rule)
+
+        item_no_display = _parse_item_no_to_display(getattr(rule, "item_no", None))
+
         g = grouped.setdefault(
             key,
             {
                 "key": key,
                 "regime": rule.regime,
                 "item_no": rule.item_no,
+                "item_no_display": item_no_display,
                 "version": getattr(rule, "version", None),
                 "title": rule.title,
                 "rule_id": rule.id,
+                "list_name": getattr(rule, "list_name", None),
                 "hits": {"core": [], "expanded": []},
                 "max_score": None,
             },
@@ -114,6 +180,8 @@ def compute_two_lists(db: Session, transaction_id: int, run_id: Optional[int] = 
         ur_text = ur.text if ur else None
 
         evidence = _safe_json_loads(getattr(mm, "evidence_json", None))
+        evidence_pretty = _pretty_json(evidence)
+        matched_tokens = _extract_matched_tokens(evidence)
 
         hit_record = {
             "matrix_match_id": mm.id,
@@ -122,7 +190,12 @@ def compute_two_lists(db: Session, transaction_id: int, run_id: Optional[int] = 
             "usage_text": ur_text,
             "match_score": getattr(mm, "match_score", None),
             "match_type": getattr(mm, "match_type", None),
+            "decision": getattr(mm, "decision", None),
+            # UI整形用
+            "matched_tokens": matched_tokens,
+            "matched_tokens_str": ", ".join(matched_tokens) if matched_tokens else "",
             "evidence": evidence,
+            "evidence_pretty": evidence_pretty,
         }
 
         score = getattr(mm, "match_score", None)

@@ -68,31 +68,67 @@
             {% for item in two_lists.intersection %}
               <div class="list-item">
                 <div class="row">
-                  <div class="strong">{{ item.regime }} / {{ item.item_no }} {% if item.title %}- {{ item.title }}{% endif %}</div>
+                  <div class="strong">
+                    {{ item.regime }} /
+                    {{ item.item_no_display }}
+                    {% if item.title %}- {{ item.title }}{% endif %}
+                  </div>
                   <div class="chip">max_score: {{ item.max_score }}</div>
                 </div>
 
-                <div class="subgrid">
+                <div class="muted small" style="margin-top:6px;">
+                  {% if item.list_name %}list: {{ item.list_name }} / {% endif %}
+                  rule_id: <span class="mono">{{ item.rule_id }}</span>
+                </div>
+
+                <div class="subgrid" style="margin-top:10px;">
                   <div>
                     <div class="muted small">core hits</div>
                     <ul class="bul">
                       {% for h in item.hits.core %}
-                        <li>
+                        <li style="margin-bottom:8px;">
                           <span class="chip">{{ h.match_type }}</span>
+                          <span class="chip">{{ h.decision or "-" }}</span>
                           <span class="mono">score={{ h.match_score }}</span>
-                          <div class="muted small">{{ h.usage_text or "-" }}</div>
+
+                          <div class="muted small" style="margin-top:4px;">{{ h.usage_text or "-" }}</div>
+
+                          {% if h.matched_tokens_str %}
+                            <div class="muted small">matched: {{ h.matched_tokens_str }}</div>
+                          {% endif %}
+
+                          {% if h.evidence_pretty %}
+                            <details style="margin-top:6px;">
+                              <summary class="muted small">evidence（整形表示）</summary>
+                              <pre style="white-space:pre-wrap; margin-top:6px;">{{ h.evidence_pretty }}</pre>
+                            </details>
+                          {% endif %}
                         </li>
                       {% endfor %}
                     </ul>
                   </div>
+
                   <div>
                     <div class="muted small">expanded hits</div>
                     <ul class="bul">
                       {% for h in item.hits.expanded %}
-                        <li>
+                        <li style="margin-bottom:8px;">
                           <span class="chip">{{ h.match_type }}</span>
+                          <span class="chip">{{ h.decision or "-" }}</span>
                           <span class="mono">score={{ h.match_score }}</span>
-                          <div class="muted small">{{ h.usage_text or "-" }}</div>
+
+                          <div class="muted small" style="margin-top:4px;">{{ h.usage_text or "-" }}</div>
+
+                          {% if h.matched_tokens_str %}
+                            <div class="muted small">matched: {{ h.matched_tokens_str }}</div>
+                          {% endif %}
+
+                          {% if h.evidence_pretty %}
+                            <details style="margin-top:6px;">
+                              <summary class="muted small">evidence（整形表示）</summary>
+                              <pre style="white-space:pre-wrap; margin-top:6px;">{{ h.evidence_pretty }}</pre>
+                            </details>
+                          {% endif %}
                         </li>
                       {% endfor %}
                     </ul>
@@ -114,17 +150,39 @@
             {% for item in two_lists.expanded_only %}
               <div class="list-item">
                 <div class="row">
-                  <div class="strong">{{ item.regime }} / {{ item.item_no }} {% if item.title %}- {{ item.title }}{% endif %}</div>
+                  <div class="strong">
+                    {{ item.regime }} /
+                    {{ item.item_no_display }}
+                    {% if item.title %}- {{ item.title }}{% endif %}
+                  </div>
                   <div class="chip">max_score: {{ item.max_score }}</div>
                 </div>
 
-                <div class="muted small" style="margin-top:8px;">expanded hits</div>
+                <div class="muted small" style="margin-top:6px;">
+                  {% if item.list_name %}list: {{ item.list_name }} / {% endif %}
+                  rule_id: <span class="mono">{{ item.rule_id }}</span>
+                </div>
+
+                <div class="muted small" style="margin-top:10px;">expanded hits</div>
                 <ul class="bul">
                   {% for h in item.hits.expanded %}
-                    <li>
+                    <li style="margin-bottom:8px;">
                       <span class="chip">{{ h.match_type }}</span>
+                      <span class="chip">{{ h.decision or "-" }}</span>
                       <span class="mono">score={{ h.match_score }}</span>
-                      <div class="muted small">{{ h.usage_text or "-" }}</div>
+
+                      <div class="muted small" style="margin-top:4px;">{{ h.usage_text or "-" }}</div>
+
+                      {% if h.matched_tokens_str %}
+                        <div class="muted small">matched: {{ h.matched_tokens_str }}</div>
+                      {% endif %}
+
+                      {% if h.evidence_pretty %}
+                        <details style="margin-top:6px;">
+                          <summary class="muted small">evidence（整形表示）</summary>
+                          <pre style="white-space:pre-wrap; margin-top:6px;">{{ h.evidence_pretty }}</pre>
+                        </details>
+                      {% endif %}
                     </li>
                   {% endfor %}
                 </ul>
