@@ -1,53 +1,33 @@
-"""
-Transaction model
-"""
+# app/db/models/matrix.py
 from __future__ import annotations
 
-import enum
 from datetime import datetime
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
 
-from sqlalchemy import String, Integer, DateTime, ForeignKey, Text, Index, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.types import JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 
 
-if TYPE_CHECKING:
-    from app.db.models.ai_run import MatrixMatch
-
-
-class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-
-class MatrixRule(Base, TimestampMixin):
+class MatrixRule(Base):
     __tablename__ = "matrix_rules"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
 
-    regime: Mapped[str] = mapped_column(String(64), nullable=False)
-    list_name: Mapped[Optional[str]] = mapped_column(String(255))
-    item_no: Mapped[str] = mapped_column(String(128), nullable=False)
-    title: Mapped[Optional[str]] = mapped_column(String(512))
+    regime = Column(String(32), nullable=False, index=True)          # 例: JP_FX
+    list_name = Column(String(255), nullable=True, index=True)       # 例: "3項 化学兵器"
+    item_no = Column(String(255), nullable=False, index=True)        # 例: "輸出令 第3項..."
+    title = Column(Text, nullable=True)
+    requirement_text = Column(Text, nullable=False)                 # NOT NULL
+    usage_criteria_text = Column(Text, nullable=True)
+    tech_criteria_text = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
 
-    requirement_text: Mapped[str] = mapped_column(Text, nullable=False)
-    usage_criteria_text: Mapped[Optional[str]] = mapped_column(Text)
-    tech_criteria_text: Mapped[Optional[str]] = mapped_column(Text)
+    version = Column(String(64), nullable=True)
+    effective_date = Column(String(32), nullable=True)
 
-    notes: Mapped[Optional[str]] = mapped_column(Text)
-    version: Mapped[Optional[str]] = mapped_column(String(64))
-    effective_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    matches: Mapped[List["MatrixMatch"]] = relationship(
-        back_populates="matrix_rule",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
-
-    __table_args__ = (
-        Index("ix_matrix_rules_regime_itemno", "regime", "item_no"),
-        UniqueConstraint("regime", "item_no", "version", name="uq_matrix_rules_regime_itemno_version"),
-    )
+    # matrix_matches は ai_run.py 側の MatrixMatch.matrix_rule と対応
+    matches = relationship("MatrixMatch", back_populates="matrix_rule")

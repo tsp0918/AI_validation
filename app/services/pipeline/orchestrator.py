@@ -47,9 +47,14 @@ def run_until_matrix_match(db: Session, transaction_id: int, threshold: float = 
         transaction_id=transaction_id,
         run_type=RunType.matrix_match,
         step_fn=step_matrix_match,
-        params={"threshold": threshold},
+        params={"threshold": threshold, "regime": "JP_FX", "top_k_per_usage": 10},
         model_name="local",
-        prompt_version="matrix_match_v1",
+        prompt_version="matrix_match_v2_fx",
     )
 
-    return {"usage_extract": r1, "patent_retrieve": r2, "usage_expand": r3, "matrix_match": r4}
+    return {
+        "usage_extract": r1,
+        "patent_retrieve": r2,
+        "usage_expand": r3,
+        "matrix_match": r4,
+    }
