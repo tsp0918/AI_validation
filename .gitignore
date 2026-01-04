@@ -9,11 +9,7 @@ env/
 venv/
 
 # SQLite
-app.db
 *.db
-*.db-journal
-*.db-wal
-*.db-shm
 *.sqlite3
 
 # Alembic
@@ -28,3 +24,6 @@ alembic/versions/__pycache__/
 
 # data
 data/*.json
+
+data/faiss/
+*.index
