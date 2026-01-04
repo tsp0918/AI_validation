@@ -9,7 +9,11 @@ env/
 venv/
 
 # SQLite
+app.db
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 *.sqlite3
 
 # Alembic
