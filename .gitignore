@@ -27,3 +27,9 @@ data/*.json
 
 data/faiss/
 *.index
+
+# --- generated / local data ---
+*.db
+data/faiss/
+data/**/*.index
+/cache/
